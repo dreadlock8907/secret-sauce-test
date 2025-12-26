@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  tests:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: saucedemo-tests
+    volumes:
+      - ./allure-results:/app/allure-results
+      - ./allure-report:/app/allure-report
+      - ./test-results:/app/test-results
+    command: >
+      sh -c "
+        rm -rf allure-results/* &&
+        echo 'Launching tests...' &&
+        pytest -v &&
+        echo 'Generating Allure report...' &&
+        allure generate allure-results -o allure-report --clean &&
+        echo '' &&
+        echo 'Tests completed!' &&
+        echo 'Report available at http://localhost:8080'
+      "
+    networks:
+      - test-network
+
+  report:
+    image: nginx:alpine
+    container_name: allure-report-server
+    ports:
+      - "8080:80"
+    volumes:
+      - ./allure-report:/usr/share/nginx/html:ro
+    networks:
+      - test-network
+    depends_on:
+      tests:
+        condition: service_completed_successfully
+
+networks:
+  test-network:
+    driver: bridge
+
